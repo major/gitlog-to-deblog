@@ -25,7 +25,7 @@ end
 
 # Checks to see if the repository has any tags already.
 def repo_has_tag?
-  `git describe --tags`
+  `git describe --tags 2>&1`
   return ($? == 0)? true : false
 end
 
@@ -41,18 +41,25 @@ def cleanup_temporary_tag
   `git tag -d #{TEMPTAG}`
 end
 
+# Removes jenkins build tags (if they exist)
+def remove_jenkins_tags
+  IO.popen("git tag -l 'jenkins-*'").readlines.each do |tag|
+    `git tag -d #{tag}`
+  end
+end
+
 # Get the name of this repository
 PKGNAME = pkgname.downcase
 
 # Name for the temporary tag (only used if the repository has no tags)
 TEMPTAG = 'initial'
 
+remove_jenkins_tags
+
 if repo_has_tag?
-  # the repo has at least one tag already
-  DOTAGCLEANUP = false
+  dotagcleanup = false
 else
-  # the repo has no tags, so we need to make one
-  DOTAGCLEANUP = true
+  dotagcleanup = true
   make_temporary_tag
 end
 
@@ -69,10 +76,15 @@ IO.popen(gitlogcmd).readlines.each_slice(4) do |chunk|
   end
 
   # dig up the most recent tag which contains the commit
-  temphash[:tag] = `git describe --tags #{temphash[:hash]}`.strip
+  temphash[:tag] = `git describe --tags #{temphash[:hash]} 2>/dev/null`.strip
+  if $? != 0
+    dotagcleanup = true
+    make_temporary_tag
+    temphash[:tag] = `git describe --tags #{temphash[:hash]}`.strip
+  end
 
   puts debchangelog(temphash)
 end
 
 # If we added a temporary tag, let's remove it
-cleanup_temporary_tag if DOTAGCLEANUP
+cleanup_temporary_tag
