@@ -25,7 +25,7 @@ end
 
 # Checks to see if the repository has any tags already.
 def repo_has_tag?
-  `git describe --tags 2>&1`
+  `git describe --tags`
   return ($? == 0)? true : false
 end
 
@@ -33,17 +33,20 @@ end
 # of versioning number for the changelog.
 def make_temporary_tag
   firstcommit = `git log --format=%H | tail -1`.strip
-  `git tag #{temptag} #{firstcommit}`
+  `git tag #{TEMPTAG} #{firstcommit}`
 end
 
 # Removes the tag we added if the repo had no tags.
 def cleanup_temporary_tag
-  `git tag -d #{temptag}`
+  `git tag -d #{TEMPTAG}`
 end
 
-# Basic setup before we start the loop
+# Get the name of this repository
 PKGNAME = pkgname.downcase
+
+# Name for the temporary tag (only used if the repository has no tags)
 TEMPTAG = 'initial'
+
 if repo_has_tag?
   # the repo has at least one tag already
   DOTAGCLEANUP = false
